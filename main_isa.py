@@ -15,10 +15,10 @@ class isa:
 
     def isa_twitter(self):
         ip = self.parser.get('elastic', 'isa')
-        es = Elasticsearch(ip, port=5245)
+        es = Elasticsearch(ip, port=5200)
         if 'username' in request.args:
             username = request.args['username']
-            query = es.search(index='new-data-twitter-isa-*', body={
+            query = es.search(index='ima-twitter-*', body={
                 "sort":
                     [
                         {"created_at": {"order": "desc"}}
@@ -55,7 +55,7 @@ class isa:
                 spliter = str(date).split('-')
                 if spliter.__len__() == 2:
                     day = controller().getdays(int(spliter[0]), int(spliter[1]))
-                    posttweet = es.search(index='new-data-twitter-isa-*', body={
+                    posttweet = es.search(index='ima-twitter-*', body={
                         "query":
                             {
                                 "bool":
@@ -69,7 +69,7 @@ class isa:
                                                 },
                                                 {
                                                     "range": {
-                                                        "timestamp": {
+                                                        "created_at": {
                                                             "gte": "{}-01 00:00:00".format(date),
                                                             "lte": "{0}-{1} 23:59:59".format(date, day),
                                                             "format": "yyyy-MM-dd HH:mm:ss",
@@ -83,56 +83,97 @@ class isa:
                         "aggs": {
                             "type": {
                                 "terms": {
-                                    "field": "type.keyword"
+                                    "field": "type"
                                 }
                             }
                         },
                         "size": 0
                     })
-                    postretweet = es.search(index='new-data-twitter-isa-*', body={
-                        "query":
-                            {
-                                "bool":
+                    postretweet = es.search(index='ima-twitter-*', body={
+                        "query": {
+                            "bool": {
+                            "should": [
+                                {
+                                "bool": {
+                                    "must": [
                                     {
-                                        "must":
-                                            [
-                                                {
-                                                    "query_string": {
-                                                        "query": "retweeted_user_screen_name:\"{0}\" OR mention : \"{0}\" OR in_quote_to_screen_name:\"{0}\"".format(
-                                                            username),
-                                                        "analyze_wildcard": "true",
-                                                        "default_field": "*"
-                                                    }
-                                                },
-                                                {
-                                                    "range": {
-                                                        "timestamp": {
-                                                            "gte": "{}-01 00:00:00".format(date),
-                                                            "lte": "{0}-{1} 23:59:59".format(date, day),
-                                                            "format": "yyyy-MM-dd HH:mm:ss",
-                                                            "time_zone": "+07:00"
-                                                        }
-                                                    }
-                                                }
-                                            ]
+                                        "match": {
+                                        "retweeted_user_screen_name": "{}".format(username)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{}-01 00:00:00".format(date),
+                                            "lte": "{0}-{1} 23:59:59".format(date, day),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
                                     }
-                            },
-                        "aggs": {
-                            "type": {
-                                "terms": {
-                                    "field": "type.keyword",
-                                    "size": 4
+                                    ]
                                 }
+                                },
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "mention": "{}".format(username)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{}-01 00:00:00".format(date),
+                                            "lte": "{0}-{1} 23:59:59".format(date, day),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                },
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "in_quote_to_screen_name": "{}".format(username)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{}-01 00:00:00".format(date),
+                                            "lte": "{0}-{1} 23:59:59".format(date, day),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                }
+                            ]
                             }
                         },
-                        "size": 0
+                        "size": 0,
+                        "aggs": {
+                            "type": {
+                            "terms": {
+                                "field": "type"
+                            }
+                            }
+                        }                      
                     })
                     totaltweet = posttweet['hits']['total']
                     totalretweet = postretweet['hits']['total']
                     tweetdetails = controller().getdetails(posttweet)
                     retweetdetails = controller().getdetails(postretweet)
                 elif spliter.__len__() == 3:
-                    posttweet = es.search(index='new-data-twitter-isa-*', body={
+                    posttweet = es.search(index='ima-twitter-*', body={
                         "query":
                             {
                                 "bool":
@@ -146,7 +187,7 @@ class isa:
                                                 },
                                                 {
                                                     "range": {
-                                                        "timestamp": {
+                                                        "created_at": {
                                                             "gte": "{} 00:00:00".format(date),
                                                             "lte": "{} 23:59:59".format(date),
                                                             "format": "yyyy-MM-dd HH:mm:ss",
@@ -160,49 +201,90 @@ class isa:
                         "aggs": {
                             "type": {
                                 "terms": {
-                                    "field": "type.keyword"
+                                    "field": "type"
                                 }
                             }
                         },
                         "size": 0
                     })
-                    postretweet = es.search(index='new-data-twitter-isa-*', body={
-                        "query":
-                            {
-                                "bool":
+                    postretweet = es.search(index='ima-twitter-*', body={
+                        "query": {
+                            "bool": {
+                            "should": [
+                                {
+                                "bool": {
+                                    "must": [
                                     {
-                                        "must":
-                                            [
-                                                {
-                                                    "query_string": {
-                                                        "query": "retweeted_user_screen_name:\"{0}\" OR mention : \"{0}\" OR in_quote_to_screen_name:\"{0}\"".format(
-                                                            username),
-                                                        "analyze_wildcard": "true",
-                                                        "default_field": "*"
-                                                    }
-                                                },
-                                                {
-                                                    "range": {
-                                                        "timestamp": {
-                                                            "gte": "{} 00:00:00".format(date),
-                                                            "lte": "{} 23:59:59".format(date),
-                                                            "format": "yyyy-MM-dd HH:mm:ss",
-                                                            "time_zone": "+07:00"
-                                                        }
-                                                    }
-                                                }
-                                            ]
+                                        "match": {
+                                        "retweeted_user_screen_name": "{}".format(username)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{} 00:00:00".format(date),
+                                            "lte": "{} 23:59:59".format(date),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
                                     }
-                            },
-                        "aggs": {
-                            "type": {
-                                "terms": {
-                                    "field": "type.keyword",
-                                    "size": 4
+                                    ]
                                 }
+                                },
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "mention": "{}".format(username)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{} 00:00:00".format(date),
+                                            "lte": "{} 23:59:59".format(date),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                },
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "in_quote_to_screen_name": "{}".format(username)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{} 00:00:00".format(date),
+                                            "lte": "{} 23:59:59".format(date),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                }
+                            ]
                             }
                         },
-                        "size": 0
+                        "size": 0,
+                        "aggs": {
+                            "type": {
+                            "terms": {
+                                "field": "type"
+                            }
+                            }
+                        }                       
                     })
                     totaltweet = posttweet['hits']['total']
                     totalretweet = postretweet['hits']['total']
@@ -226,10 +308,10 @@ class isa:
 
     def isa_onlinenews(self):
         ip = self.parser.get('elastic', 'isa')
-        es = Elasticsearch(ip, port=5245)
+        es = Elasticsearch(ip, port=5200)
         if 'media' in request.args:
             media_name = request.args['media']
-            query = es.search(index='online-news-isa-*', body=
+            query = es.search(index='ima-online-news-*', body=
             {
                 "sort": [
                     {"created_at": {"order": "desc"}}
@@ -266,7 +348,7 @@ class isa:
                 date = request.args['date']
                 if 'offset' in request.args:
                     offset = request.args['offset']
-                    post = es.search(index='online-news-isa-*', body={
+                    post = es.search(index='ima-online-news-*', body={
                         "sort": [
                             {"created_at": {"order": "desc"}}
                         ],
@@ -294,7 +376,7 @@ class isa:
                         "from": offset, "size": 20
                     })
                 else:
-                    post = es.search(index='online-news-isa-*', body={
+                    post = es.search(index='ima-online-news-*', body={
                         "sort": [
                             {"created_at": {"order": "desc"}}
                         ],
@@ -350,8 +432,296 @@ class isa:
                         'image': image
                     })
                 jsons['post']['post'] = postingan
-
             result = json.dumps(jsons)
             return result
         else:
             return 'No parameters'
+    
+    def isa_onlinenews_req(self):
+        ip  = self.parser.get('elastic','isa')
+        es  = Elasticsearch(ip, port=5200)
+        if 'news_id' in request.args:
+            news_id = request.args['news_id']
+            query = es.search(index='ima-online-news-*', body={
+                    "sort": [
+                        {
+                            "created_at": {
+                                "order": "desc"
+                            }
+                        }
+                    ],
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "match": {
+                                        "_id": "{}".format(news_id)
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "size": 1
+            })
+            if query['hits']['total'] != 0:
+                _source = query['hits']['hits'][0]['_source']
+                source = _source['source']
+                link = _source['link']
+                title = _source['title']
+                last = _source['created_at']
+                utc_to_local = datetime.strptime(last, '%Y-%m-%d %H:%M:%S')
+                utc_to_local = utc_to_local.replace(tzinfo=self.from_zone)
+                last_update = str(utc_to_local.astimezone(self.to_zone))
+                image = _source['images'][0]
+                content = _source['content']
+            else:
+                last_update = bool(False)
+                link = bool(False)
+                title = bool(False)
+                source = news_id
+                image = bool(False)
+                content = bool(False)
+            jsons = {"source": source, "post" : {'news_id':news_id,"title": title,"pubdate": last_update, "link": link,'content':content,'image' : image }}
+            result = json.dumps(jsons)
+            return result
+        else:
+            return 'No parameters'        
+        
+    def isa_facebook(self):
+        ip  = self.parser.get('elastic','isa')
+        es  = Elasticsearch(ip, port=5200)
+        if 'user_id' in request.args:
+            userid  = request.args['user_id']
+            query = es.search(index='ima-facebook-*',body = {
+                "sort": [
+                    {"created_at": {"order": "desc"}}
+                ],
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "match": {
+                                    "user_id": "{}".format(userid)
+                                }
+                            }
+                        ]
+                    }
+                },
+                "size": 1
+            })
+            if query['hits']['total'] == 0 :
+                last_update = bool(False)
+                source  = "not found"
+                last_data_stream = bool(False)
+            else:
+                _source = query['hits']['hits'][0]['_source']
+                source = _source['user_full_name']
+                last_data_stream = "https://fb.com/{}".format(_source['id'])
+                last    = _source['created_at']
+                lasted  = re.sub('\+[^\s]+','',last)
+                utc_to_local = datetime.strptime(lasted, '%a %b %d %H:%M:%S %Y')
+                utc_to_local = utc_to_local.replace(tzinfo=self.from_zone)
+                last_update = str(utc_to_local.astimezone(self.to_zone))
+            jsons = {"source": source, "last_update": last_update, "last_data_stream": last_data_stream}
+            if 'date' in request.args:
+                date    = request.args['date']
+                spliter = str(date).split('-')
+                if spliter.__len__() == 2:
+                    day = controller().getdays(int(spliter[0]),int(spliter[1]))
+                    getpost = es.search(index='ima-facebook-*', body={
+                        "sort": [
+                            {"created_at": {"order": "desc"}}
+                        ],
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {
+                                        "match": {
+                                            "user_id": "{}".format(userid)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                            "created_at": {
+                                                "gte": "{}-01 00:00:00".format(date),
+                                                "lte": "{0}-{1} 23:59:59".format(date,day),
+                                                "format": "yyyy-MM-dd HH:mm:ss",
+                                                "time_zone": "+07:00"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "aggs": {
+                            "type": {
+                                "terms": {
+                                    "field": "type"
+                                }
+                            }
+                        },
+                        "size": 0
+                    })
+                    getcomment = es.search(index='ima-facebook-*', body={
+                        "sort": [
+                            {
+                            "created_at": {
+                                "order": "desc"
+                            }
+                            }
+                        ],
+                        "query": {
+                            "bool": {
+                            "must": [
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "page_id": "{}".format(userid)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{}-01 00:00:00".format(date),
+                                            "lte": "{0}-{1} 23:59:59".format(date, day),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                },
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "status": "comment"
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{}-01 00:00:00".format(date),
+                                            "lte": "{0}-{1} 23:59:59".format(date, day),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                }
+                            ]
+                            }
+                        },
+                        "size": 0                      
+                    })
+                elif spliter.__len__() == 3:
+                    getpost = es.search(index='ima-facebook-*', body= {
+                    "sort": [
+                        {"created_at": {"order": "desc"}}
+                    ],
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "match": {
+                                        "user_id": "{}".format(userid)
+                                    }
+                                },
+                                {
+                                    "range": {
+                                        "created_at": {
+                                            "gte": "{} 00:00:00".format(date),
+                                            "lte": "{} 23:59:59".format(date),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "aggs": {
+                        "type": {
+                            "terms": {
+                                "field": "type"
+                            }
+                        }
+                    },
+                    "size": 0
+                })
+                    getcomment = es.search(index='ima-facebook-*', body={
+                                  "sort": [
+                            {
+                            "created_at": {
+                                "order": "desc"
+                            }
+                            }
+                        ],
+                        "query": {
+                            "bool": {
+                            "must": [
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "page_id": "{}".format(userid)
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{} 00:00:00".format(date),
+                                            "lte": "{} 23:59:59".format(date),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                },
+                                {
+                                "bool": {
+                                    "must": [
+                                    {
+                                        "match": {
+                                        "status": "comment"
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                        "created_at": {
+                                            "gte": "{} 00:00:00".format(date),
+                                            "lte": "{} 23:59:59".format(date),
+                                            "format": "yyyy-MM-dd HH:mm:ss",
+                                            "time_zone": "+07:00"
+                                        }
+                                        }
+                                    }
+                                    ]
+                                }
+                                }
+                            ]
+                            }
+                        },
+                        "size": 0      
+                })
+                else:
+                    getcomment = False
+                    getpost = False
+                totalcom    = getcomment['hits']['total']
+                totalpost  = getpost['hits']['total']
+                postdetails = controller().getdetails(getpost)
+                jsons['Data'] = {'post_total' : totalpost, 'comment' : totalcom}
+                if 'details' in request.args: jsons['Data']['post_details'] = postdetails
+            result = json.dumps(jsons)
+            return result
+        else:
+            return 'No parameter'
